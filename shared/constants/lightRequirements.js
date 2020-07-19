@@ -4,4 +4,4 @@ export const lightRequirements = {
   part_shade: "Part shade",
   part_shade_to_full_shade: "Full sun to part shade",
   full_shad: "Full shade",
-}
+};

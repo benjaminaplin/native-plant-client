@@ -1,97 +1,137 @@
 /** @jsx jsx */
-import React, { useCallback } from "react";
+import { useMemo } from "react";
 import styled from "@emotion/styled";
 import { css, jsx } from "@emotion/core";
 import Layout from "../../components/Layout";
-
+import {
+  plantsCell,
+  plantsTable,
+  plantsTableHeader,
+  thColumn,
+  tableBody,
+} from "./styles/tableStyles";
+import { lightRequirements } from "../../shared/constants/lightRequirements";
 import {
   Cell,
-  CellProps,
-  FilterProps,
-  HeaderGroup,
-  HeaderProps,
-  Hooks,
-  Meta,
-  Row,
-  TableInstance,
-  TableOptions,
-  useColumnOrder,
-  useExpanded,
-  useFilters,
-  useFlexLayout,
-  useGroupBy,
-  usePagination,
-  useResizeColumns,
-  useRowSelect,
-  useSortBy,
   useTable,
+  useFilters,
+  useGlobalFilter,
+  useAsyncDebounce,
 } from "react-table";
+import {
+  DefaultColumnFilter,
+  GlobalFilter,
+  SelectColumnFilter,
+  SliderColumnFilter,
+  NumberRangeColumnFilter,
+  fuzzyTextFilterFn,
+  filterGreaterThan,
+} from "./helpers/filters";
+import { Plant } from "./types/plantTableTypes";
 
-const columns = [
-  {
-    Header: "Name",
-    columns: [
-      {
-        Header: "Friendly Name",
-        accessor: "friendly_name",
-      },
-      {
-        Header: "Botanical Name",
-        accessor: "botanical_name",
-      },
-    ],
-  },
-  {
-    Header: "Attributes",
-    columns: [
-      {
-        Header: "Light",
-        accessor: "light_requirements",
-        width: 50,
-        minWidth: 50,
-        align: "right",
-      },
-      {
-        Header: "Growing Seasonality",
-        accessor: "growing_seasonality",
-        width: 50,
-        minWidth: 50,
-        align: "right",
-      },
-      {
-        Header: "Plant Types",
-        accessor: "plant_type",
-      },
-      {
-        Header: "Plant Placement Order",
-        accessor: "plant_placement_order",
-      },
-    ],
-  },
-];
-const plantsCellStyle = css({
-  border: "1px solid cornflowerblue",
-  // padding: ".5rem",
-  // fontSize: ".75rem",
-  // width: "16%",
-});
 const PlantTable = (props: { plants: [] }): any => {
-  const tableInstance = useTable({ columns, data: props.plants });
+  const columns = useMemo(
+    () => [
+      {
+        Header: "Name",
+        columns: [
+          {
+            Header: "Friendly Name",
+            accessor: "friendly_name",
+          },
+          {
+            Header: "Botanical Name",
+            accessor: "botanical_name",
+            filter: "fuzzyText",
+          },
+        ],
+      },
+      {
+        Header: "Attributes",
+        columns: [
+          {
+            Header: "Light",
+            accessor: (row) => lightRequirements[row.light_requirements],
+            width: 50,
+            minWidth: 50,
+            align: "center",
+            filter: SelectColumnFilter,
+          },
+          {
+            Header: "Growing Seasonality",
+            accessor: "growing_seasonality",
+            width: 50,
+            minWidth: 50,
+            align: "center",
+            filter: SelectColumnFilter,
+          },
+          {
+            Header: "Plant Types",
+            accessor: "plant_type",
+            filter: SelectColumnFilter,
+          },
+          {
+            Header: "Plant Placement Order",
+            accessor: "plant_placement_order",
+            filter: SelectColumnFilter,
+          },
+        ],
+      },
+    ],
+    []
+  );
+
+  const filterTypes = useMemo(
+    () => ({
+      // Add a new fuzzyTextFilterFn filter type.
+      fuzzyText: fuzzyTextFilterFn,
+      // Or, override the default text filter to use
+      // "startWith"
+      text: (rows, id, filterValue) => {
+        return rows.filter((row) => {
+          const rowValue = row.values[id];
+          return rowValue !== undefined
+            ? String(rowValue)
+                .toLowerCase()
+                .startsWith(String(filterValue).toLowerCase())
+            : true;
+        });
+      },
+    }),
+    []
+  );
+  const defaultColumn = useMemo(
+    () => ({
+      // Let's set up our default Filter UI
+      Filter: DefaultColumnFilter,
+    }),
+    []
+  );
   const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
     rows,
     prepareRow,
-  } = tableInstance;
+    state,
+    visibleColumns,
+    preGlobalFilteredRows,
+    setGlobalFilter,
+  } = useTable(
+    {
+      columns,
+      data: props.plants,
+      defaultColumn, // Be sure to pass the defaultColumn option
+      filterTypes,
+    },
+    useFilters,
+    useGlobalFilter
+  );
+
   return (
     <Layout>
-      <table {...getTableProps()}>
-        <thead
-          style={{
-            background: "salmon",
-          }}
-        >
+      <table css={plantsTable} {...getTableProps()}>
+        <thead css={plantsTableHeader}>
           {
             // Loop over the header rows
             headerGroups.map((headerGroup) => (
@@ -101,11 +141,16 @@ const PlantTable = (props: { plants: [] }): any => {
                   // Loop over the headers in each row
                   headerGroup.headers.map((column) => (
                     // Apply the header cell props
-                    <th {...column.getHeaderProps()}>
+                    <th css={thColumn} {...column.getHeaderProps()}>
                       {
                         // Render the header
                         column.render("Header")
                       }
+                      <GlobalFilter
+                        preGlobalFilteredRows={preGlobalFilteredRows}
+                        globalFilter={state.globalFilter}
+                        setGlobalFilter={setGlobalFilter}
+                      />
                     </th>
                   ))
                 }
@@ -128,7 +173,7 @@ const PlantTable = (props: { plants: [] }): any => {
                     row.cells.map((cell) => {
                       // Apply the cell props
                       return (
-                        <td css={plantsCellStyle} {...cell.getCellProps()}>
+                        <td css={plantsCell} {...cell.getCellProps()}>
                           {
                             // Render the cell contents
                             cell.render("Cell")

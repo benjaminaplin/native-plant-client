@@ -20,10 +20,12 @@
     "@emotion/styled": "^10.0.27",
     "@types/yup": "^0.29.3",
     "formik": "^2.1.5",
+    "match-sorter": "^4.2.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "react-table": "^7.3.0",
+    "regenerator-runtime": "^0.13.5",
     "yup": "^0.29.1"
   },
   "devDependencies": {
